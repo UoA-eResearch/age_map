@@ -152,3 +152,8 @@ table thead th {
 #colorbar > #min {
   bottom: 0;
 }
+
+.leaflet-marker-icon {
+  background-color:white;
+  border-radius: 14px;
+}

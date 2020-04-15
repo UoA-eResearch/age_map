@@ -44,6 +44,7 @@
       }
       
       var ageLayer = L.layerGroup().addTo(map);
+      var hospitalLayer = L.layerGroup().addTo(map);
 
       map.createPane('labels');
       map.getPane('labels').style.zIndex = 625;
@@ -67,6 +68,7 @@
 
       var overlays = {
           "Age data": ageLayer,
+          "Hospitals": hospitalLayer,
           "City labels": labels,
           "City labels (white)": whitelabels,
       }
@@ -146,6 +148,35 @@
             onEachFeature: onEachFeature
           }).addTo(ageLayer);
         });
+      });
+
+      $.getJSON("nz_hospitals.geojson", function(geojson) {
+        console.log(geojson);
+        for (var i in geojson.features) {
+          var feature = geojson.features[i];
+          var latlng;
+          if (feature.geometry.type === "Polygon" || feature.geometry.type == "MultiPolygon") {
+            var center = L.latLngBounds(feature.geometry.coordinates[0]).getCenter();
+            latlng = [center.lng, center.lat];
+          } else if (feature.geometry.type == "Point") {
+            latlng = L.GeoJSON.coordsToLatLng(feature.geometry.coordinates);
+          } else if (feature.geometry.type == "LineString") {
+            var center = L.latLngBounds(feature.geometry.coordinates).getCenter();
+            latlng = [center.lng, center.lat];
+          } else {
+            console.error("Don't know how to handle", feature);
+            return;
+          }
+          var icon = L.icon({
+            iconUrl: 'https://wiki.openstreetmap.org/w/images/3/33/Hospital-14.svg',
+            iconSize: [28, 28]
+          });
+          var name = feature.properties.name;
+          if (!name) {
+            name = "Hospital";
+          }
+          var marker = L.marker(latlng, {icon: icon}).bindTooltip(name).addTo(hospitalLayer);
+        }
       });
 
       var legend = L.control({position: 'bottomright'});
