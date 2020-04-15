@@ -85,20 +85,21 @@
             style: function(feature) {
                 var id = feature.properties.SA22018_V1_00;
                 var saData = data[id][2018];
-                if (!saData.Total) {
-                  var color = "black";
-                } else {
-                  var count = saData["65-69 years"] + saData["70-74 years"] + saData["75-79 years"] + saData["80-84 years"] + saData["85 years and over"];
-                  count = count / saData.Total * 100;
-                  console.log(count);
-                  var color = cmap(count)
-                }
+                var count = saData["65-69 years"] + saData["70-74 years"] + saData["75-79 years"] + saData["80-84 years"] + saData["85 years and over"];
+                count = count / saData.Total * 100;
+                console.log(count);
+                var color = cmap(count)
                 return {
                   fillColor: color,
                   fillOpacity: .7,
                   weight: 1,
                   color: "black",
                 };
+            },
+            filter: function(feature, layer) {
+              var id = feature.properties.SA22018_V1_00;
+              var saData = data[id][2018];
+              return saData.Total > 40;
             },
             onEachFeature: onEachFeature
           }).addTo(map);
