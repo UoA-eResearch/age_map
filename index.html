@@ -16,6 +16,14 @@
     <h1 id="title">2018 Census age data in NZ</h1>
     <div id="map"></div>
     <script>
+      const urlParams = new URLSearchParams(window.location.search);
+      var colour_mode = "pct";
+      var MAX_DOMAIN = 20;
+      if (urlParams.get("colour_by") == "raw_counts") {
+        colour_mode = "raw_counts";
+        MAX_DOMAIN = 500;
+      }
+
       var map = L.map('map', {
         zoom: 6,
         minZoom: 6,
@@ -75,7 +83,7 @@
 
       L.control.layers(baseMaps, overlays).addTo(map);
 
-      var cmap = chroma.scale("Blues").domain([0, 20]);
+      var cmap = chroma.scale("Blues").domain([0, MAX_DOMAIN]);
 
       function popupHandler(e) {
         console.log(e);
@@ -85,23 +93,36 @@
         var data = e.popup.options.data;
         console.log(data);
         var keys = ["0-4 years", "5-9 years", "10-14 years", "15-19 years", "20-24 years", "25-29 years", "30-34 years", "35-39 years", "40-44 years", "45-49 years", "50-54 years", "55-59 years", "60-64 years", "65-69 years", "70-74 years", "75-79 years", "80-84 years", "85 years and over"];
-        var values = [];
-        var pcts = [];
+        var maleValues = [];
+        var malePcts = [];
+        var femaleValues = [];
+        var femalePcts = [];
         for (var i in keys) {
           var k = keys[i]
-          values.push(data[k]);
-          pcts.push(Math.round(data[k] / data.Total * 100 * 100) / 100 + "%");
+          maleValues.push(data.Male[k]);
+          femaleValues.push(data.Female[k]);
+          malePcts.push(Math.round(data.Male[k] / data.Male.Total * 100 * 100) / 100 + "%");
+          femalePcts.push(Math.round(data.Female[k] / data.Female.Total * 100 * 100) / 100 + "%");
         }
         var plotData = [
           {
             x: keys,
-            y: values,
-            text: pcts,
+            y: maleValues,
+            name: "Male",
+            text: malePcts,
             type: 'bar',
+          },
+          {
+            x: keys,
+            y: femaleValues,
+            name: "Female",
+            text: femalePcts,
+            type: "bar"
           }
         ];
         var layout = {
-            title: "Age distribution of " + data.name + ". Total people stated: " + data.Total,
+            title: "Gender and age distribution of " + data.name + ". Total people stated: " + data.Total.Total,
+            barmode: 'stack',
             xaxis: {
                 title: "Age Bracket"
             },
@@ -119,7 +140,7 @@
         window.data = data;
         function onEachFeature(feature, layer) {
             var id = feature.properties.SA22018_V1_00;
-            var saData = data[id][2018];
+            var saData = data[id];
             var name = feature.properties.SA22018_V1_NAME;
             saData.name = name;
             var popup = '<div id="graph"></div>';
@@ -136,9 +157,11 @@
           var geojsonLayer = new L.GeoJSON(geojson, {
             style: function(feature) {
                 var id = feature.properties.SA22018_V1_00;
-                var saData = data[id][2018];
+                var saData = data[id].Total;
                 var count = saData["65-69 years"] + saData["70-74 years"] + saData["75-79 years"] + saData["80-84 years"] + saData["85 years and over"];
-                count = count / saData.Total * 100;
+                if (colour_mode == "pct") {
+                  count = count / saData.Total * 100;
+                }
                 var color = cmap(count)
                 return {
                   fillColor: color,
@@ -149,7 +172,7 @@
             },
             filter: function(feature, layer) {
               var id = feature.properties.SA22018_V1_00;
-              var saData = data[id][2018];
+              var saData = data[id].Total;
               return saData.Total > 40;
             },
             onEachFeature: onEachFeature
@@ -189,7 +212,7 @@
       legend.onAdd = function (map) {
           var div = L.DomUtil.create('div', 'info legend');
           div.innerHTML += "<h4>Percentage of population over 65 years old</h4>";
-          for (var i = 0; i <= 20; i += 2) {
+          for (var i = 0; i <= MAX_DOMAIN; i += MAX_DOMAIN / 10) {
             div.innerHTML += '<i style="background:' + cmap(i) + '"></i> ' + i + '<br>';
           }
           div.innerHTML += '<div class="legend-source">Source: <a href="https://www.stats.govt.nz/tools/2018-census-place-summaries/" target="_blank">Statistics NZ</a></div>'

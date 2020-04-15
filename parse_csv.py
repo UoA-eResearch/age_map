@@ -21,7 +21,7 @@ for fn in files:
         age_group = row["Age_group_5_year_groups_to_85_years_and_over_description"]
         sex = row["Sex_description"]
         maori = row["Maori_ethnic_group_indicator_summary_description"]
-        if sex != "Total" or maori != "Total":
+        if maori != "Total":
           continue
         count = row["Census_usually_resident_population_count"]
         if count == "C":
@@ -29,9 +29,11 @@ for fn in files:
         else:
           count = int(count)
         if code not in o:
-          o[code] = {}
-        if year not in o[code]:
-          o[code][year] = {}
-        o[code][year][age_group] = count
+          o[code] = {
+            "Male": {},
+            "Female": {},
+            "Total": {}
+          }
+        o[code][sex][age_group] = count
 
 print(json.dumps(o, sort_keys=True, indent=4))
