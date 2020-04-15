@@ -5,6 +5,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.js" integrity="sha256-CNm+7c26DTTCGRQkM9vp7aP85kHFMqs9MhPEuytF+fQ=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-ajax/2.1.0/leaflet.ajax.min.js" integrity="sha256-rVeyUZMfAHhQJ7hvWaHrKknTDdqGcn1gxBBJA++E4z8=" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet-overpass-layer@2.8.3/src/OverPassLayer.css" />
+    <script src="https://unpkg.com/leaflet-providers@1.3.0/leaflet-providers.js"></script>
     <script src="https://unpkg.com/leaflet-overpass-layer@2.8.3/dist/OverPassLayer.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/spin.js/2.3.2/spin.min.js"></script>
     <script src="https://unpkg.com/leaflet-spin@1.1.0/leaflet.spin.min.js"></script>
@@ -16,19 +17,61 @@
     <h1 id="title">2018 Census age data in NZ</h1>
     <div id="map"></div>
     <script>
-      var map = L.map('map').setView([-41.235726,172.5118422], 6);
-      L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
-	      attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
-	      subdomains: 'abcd',
-	      maxZoom: 19,
-	      minZoom: 6,
-      }).addTo(map);
+      var map = L.map('map', {
+        zoom: 6,
+        minZoom: 6,
+        maxZoom: 14,
+        center: [-41.235726,172.5118422]
+      });
       var bounds = map.getBounds();
       bounds._northEast.lat += 10;
       bounds._northEast.lng += 10;
       bounds._southWest.lat -= 10;
       bounds._southWest.lng -= 10;
       map.setMaxBounds(bounds);
+
+      var baseMaps = {
+        "OSM": L.tileLayer.provider("OpenStreetMap.Mapnik"),
+        "OSM Grayscale": L.tileLayer.provider("OpenStreetMap.BlackAndWhite"),
+        "CartoDB Positron": L.tileLayer.provider('CartoDB.PositronNoLabels').addTo(map),
+        "CartoDB Dark Matter": L.tileLayer.provider("CartoDB.DarkMatter"),
+        "ESRI WorldImagery": L.tileLayer.provider("Esri.WorldImagery"),
+        "Google Hybrid": L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{
+            maxZoom: 20,
+            subdomains:['mt0','mt1','mt2','mt3']
+        }),
+        "Wikimedia": L.tileLayer.provider("Wikimedia")
+      }
+      
+      var ageLayer = L.layerGroup().addTo(map);
+
+      map.createPane('labels');
+      map.getPane('labels').style.zIndex = 625;
+      map.getPane('labels').style.pointerEvents = 'none';
+      var labels = L.tileLayer.provider("Stamen.TonerLabels", {
+          pane: "labels",
+          interactive: false,
+          opacity: .8,
+      });
+      labels.addTo(map);
+
+      map.createPane('whitelabels');
+      map.getPane('whitelabels').style.zIndex = 625;
+      map.getPane('whitelabels').style.pointerEvents = 'none';
+      map.getPane('whitelabels').style.filter = 'invert(100%)';
+      var whitelabels = L.tileLayer.provider("Stamen.TonerLabels", {
+          pane: "whitelabels",
+          interactive: false,
+          opacity: .8,
+      });
+
+      var overlays = {
+          "Age data": ageLayer,
+          "City labels": labels,
+          "City labels (white)": whitelabels,
+      }
+
+      L.control.layers(baseMaps, overlays).addTo(map);
       
       function round(x, dp) {
         var factor = Math.pow(10, dp);
@@ -87,7 +130,6 @@
                 var saData = data[id][2018];
                 var count = saData["65-69 years"] + saData["70-74 years"] + saData["75-79 years"] + saData["80-84 years"] + saData["85 years and over"];
                 count = count / saData.Total * 100;
-                console.log(count);
                 var color = cmap(count)
                 return {
                   fillColor: color,
@@ -102,11 +144,11 @@
               return saData.Total > 40;
             },
             onEachFeature: onEachFeature
-          }).addTo(map);
+          }).addTo(ageLayer);
         });
       });
 
-      var legend = L.control({position: 'topleft'});
+      var legend = L.control({position: 'bottomright'});
 
       legend.onAdd = function (map) {
           var div = L.DomUtil.create('div', 'info legend');
