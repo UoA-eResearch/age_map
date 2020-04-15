@@ -147,6 +147,7 @@
                 var id = feature.properties.SA22018_V1_00;
                 var saData = data[id].Total;
                 var count = saData["65-69 years"] + saData["70-74 years"] + saData["75-79 years"] + saData["80-84 years"] + saData["85 years and over"];
+                saData.over65 = count;
                 if (colour_mode == "pct") {
                   count = count / saData.Total * 100;
                 }
@@ -178,18 +179,44 @@
               });
             }
           }).addTo(ageLayer);
-          $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
-            console.log(NZ_DHB2012);
-            new L.GeoJSON(NZ_DHB2012, {
-              onEachFeature: function (feature, layer) {
-                layer.bindTooltip(feature.properties.NAME + " DHB")
-              },
-              style: {
-                color: "purple",
-                fillOpacity: 0,
-                weight: 1
-              }
-            }).addTo(DHBLayer);
+          $.getJSON("sa2_centroids_to_DHB.geojson", function(sa2_centroids_to_DHB) {
+            console.log(sa2_centroids_to_DHB);
+            $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
+              console.log(NZ_DHB2012);
+              new L.GeoJSON(NZ_DHB2012, {
+                onEachFeature: function (feature, layer) {
+                  layer.bindTooltip(feature.properties.NAME + " DHB")
+                },
+                style: function(feature) {
+                  var name = feature.properties.NAME;
+                  var count = 0;
+                  var total = 0;
+                  for (var i in sa2_centroids_to_DHB.features) {
+                    var f = sa2_centroids_to_DHB.features[i];
+                    if (f.properties["DHB.NAME"] == name) {
+                      var id = f.properties.SA22018_V1;
+                      var sa2data = data[id].Total;
+                      if (sa2data.over65 != undefined) {
+                        count += sa2data.over65;
+                      }
+                      total += sa2data.Total;
+                    }
+                  }
+                  console.log(name, count, total);
+                  if (colour_mode == "pct") {
+                    count = count / total * 100;
+                  }
+                  var color = cmap(count);
+
+                  return {
+                    color: "purple",
+                    fillColor: color,
+                    fillOpacity: 1,
+                    weight: 1
+                  }
+                }
+              }).addTo(DHBLayer);
+            });
           });
         });
       });
