@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.0.3/chroma.min.js"></script>
     <link rel="stylesheet" href="style.css"/>
   </head>
@@ -73,55 +74,42 @@
       }
 
       L.control.layers(baseMaps, overlays).addTo(map);
-      
-      function round(x, dp) {
-        var factor = Math.pow(10, dp);
-        var tmp = x * factor;
-        tmp = Math.round(tmp);
-        return tmp / factor;
-      }
-      
-      function handleNull(string) {
-        if (!string) {
-          return "No data";
-        }
-        return string;
-      }
-
-      function getPct(ageBracket, yearData) {
-        if (!yearData["Total"]) {
-          return "No data";
-        }
-        return round(yearData[ageBracket] / yearData["Total"] * 100, 1) + "%";
-      }
-
-      function formatData(name, data) {
-        var header = "<h2>" + name + "</h2>"
-        if (!data[2018]["Total"]) {
-          return header + "No data";
-        }
-        tableHeader = "<th>Age Bracket</th>";
-        tableContent = "<td>Percentage in 2018</td>";
-        var keys = ["0-4 years", "5-9 years", "10-14 years", "15-19 years", "20-24 years", "25-29 years", "30-34 years", "35-39 years", "40-44 years", "45-49 years", "50-54 years", "55-59 years", "60-64 years", "65-69 years", "70-74 years", "75-79 years", "80-84 years", "85 years and over"]
-        for (var i in keys) {
-          var ageBracket = keys[i];
-          if (ageBracket.includes("Total")) continue;
-          tableHeader += "<th>" + ageBracket + "</th>";
-          tableContent += "<td>" + getPct(ageBracket, data[2018]) + "</td>";
-        }
-        table = "<table><thead>" + tableHeader + "</thead><tbody>" + tableContent + "</tbody></table>";
-        return header + table;
-      }
 
       var cmap = chroma.scale([chroma.hsv(270,1,1), chroma.hsv(180,1,1), chroma.hsv(90,1,1), chroma.hsv(0,1,1)]).mode("hsv").domain([0, 20]);
+
+      function popupHandler(e) {
+        console.log(e);
+        var px = map.project(e.target._popup._latlng);
+        px.y -= e.target._popup._container.clientHeight * 3;
+        map.panTo(map.unproject(px),{animate: true});
+        var data = e.popup.options.data;
+        var keys = ["0-4 years", "5-9 years", "10-14 years", "15-19 years", "20-24 years", "25-29 years", "30-34 years", "35-39 years", "40-44 years", "45-49 years", "50-54 years", "55-59 years", "60-64 years", "65-69 years", "70-74 years", "75-79 years", "80-84 years", "85 years and over"];
+        var values = [];
+        for (var i in keys) {
+          var k = keys[i]
+          values.push(data[k]);
+        }
+        var data = [
+          {
+            x: keys,
+            y: values,
+            type: 'bar'
+          }
+        ];
+
+        var container = $("#graph", e.popup._contentNode);
+        Plotly.newPlot(container[0], data);
+      }
       
       $.getJSON("ages.json", function(data) {
         console.log(data);
         window.data = data;
         function onEachFeature(feature, layer) {
             var id = feature.properties.SA22018_V1_00;
-            var name = feature.properties.SA22018_V1_NAME
-            layer.bindPopup(formatData(name, data[id]), {maxWidth: 1000 });
+            var saData = data[id][2018];
+            var name = feature.properties.SA22018_V1_NAME;
+            var popup = '<h2>' + name + '</h2><div id="graph"></div>';
+            layer.bindTooltip(name).bindPopup(popup, {data: saData, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
         }
         
         $.getJSON("sa2.geojson", function(geojson) {
