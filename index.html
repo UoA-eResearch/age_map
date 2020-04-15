@@ -185,12 +185,15 @@
               console.log(NZ_DHB2012);
               new L.GeoJSON(NZ_DHB2012, {
                 onEachFeature: function (feature, layer) {
-                  layer.bindTooltip(feature.properties.NAME + " DHB")
+                  var popup = '<div id="graph"></div>';
+                  layer.bindTooltip(feature.properties.NAME + " DHB").bindPopup(popup, {data: feature.data, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
                 },
                 style: function(feature) {
                   var name = feature.properties.NAME;
                   var count = 0;
                   var total = 0;
+                  var ageSummaryM = {}
+                  var ageSummaryF = {}
                   for (var i in sa2_centroids_to_DHB.features) {
                     var f = sa2_centroids_to_DHB.features[i];
                     if (f.properties["DHB.NAME"] == name) {
@@ -199,7 +202,23 @@
                       if (sa2data.over65 != undefined) {
                         count += sa2data.over65;
                       }
+                      for (var k in data[id].Male) {
+                        if (!ageSummaryM[k]) ageSummaryM[k] = 0;
+                        ageSummaryM[k] += data[id].Male[k];
+                      }
+                      for (var k in data[id].Female) {
+                        if (!ageSummaryF[k]) ageSummaryF[k] = 0;
+                        ageSummaryF[k] += data[id].Female[k];
+                      }
                       total += sa2data.Total;
+                    }
+                  }
+                  feature.data = {
+                    name: name + " DHB",
+                    Female: ageSummaryF,
+                    Male: ageSummaryM,
+                    Total: {
+                      Total: total
                     }
                   }
                   console.log(name, count, total);
