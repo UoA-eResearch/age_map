@@ -51,6 +51,7 @@
       }
       
       var ageLayer = L.layerGroup().addTo(map);
+      var DHBLayer = L.layerGroup();
       var hospitalLayer = L.markerClusterGroup({
         maxClusterRadius: 40,
       }).addTo(map);
@@ -77,6 +78,7 @@
       var overlays = {
           "Age data": ageLayer,
           "Hospitals": hospitalLayer,
+          "DHBs": DHBLayer,
           "City labels": labels,
           "City labels (white)": whitelabels,
       }
@@ -138,20 +140,6 @@
       $.getJSON("ages.json", function(data) {
         console.log(data);
         window.data = data;
-        function onEachFeature(feature, layer) {
-            var id = feature.properties.SA22018_V1_00;
-            var saData = data[id];
-            var name = feature.properties.SA22018_V1_NAME;
-            saData.name = name;
-            var popup = '<div id="graph"></div>';
-            layer.bindTooltip(name).bindPopup(popup, {data: saData, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
-            layer.on("mouseover", function(e) {
-              layer.setStyle({color: "orange"});
-              layer.bringToFront();
-            }).on("mouseout", function(e) {
-              layer.setStyle({color: "black"});
-            });
-        }
         
         $.getJSON("sa2.geojson", function(geojson) {
           var geojsonLayer = new L.GeoJSON(geojson, {
@@ -166,7 +154,7 @@
                 return {
                   fillColor: color,
                   fillOpacity: .7,
-                  weight: 1,
+                  weight: .5,
                   color: "black",
                 };
             },
@@ -175,8 +163,34 @@
               var saData = data[id].Total;
               return saData.Total > 40;
             },
-            onEachFeature: onEachFeature
+            onEachFeature: function (feature, layer) {
+              var id = feature.properties.SA22018_V1_00;
+              var saData = data[id];
+              var name = feature.properties.SA22018_V1_NAME;
+              saData.name = name;
+              var popup = '<div id="graph"></div>';
+              layer.bindTooltip(name).bindPopup(popup, {data: saData, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
+              layer.on("mouseover", function(e) {
+                layer.setStyle({color: "orange"});
+                layer.bringToFront();
+              }).on("mouseout", function(e) {
+                layer.setStyle({color: "black"});
+              });
+            }
           }).addTo(ageLayer);
+          $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
+            console.log(NZ_DHB2012);
+            new L.GeoJSON(NZ_DHB2012, {
+              onEachFeature: function (feature, layer) {
+                layer.bindTooltip(feature.properties.NAME + " DHB")
+              },
+              style: {
+                color: "purple",
+                fillOpacity: 0,
+                weight: 1
+              }
+            }).addTo(DHBLayer);
+          });
         });
       });
 
