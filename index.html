@@ -211,7 +211,11 @@
 
       legend.onAdd = function (map) {
           var div = L.DomUtil.create('div', 'info legend');
-          div.innerHTML += "<h4>Percentage of population over 65 years old</h4>";
+          if (colour_mode == "pct") {
+            div.innerHTML += "<h4>Percentage of population over 65 years old</h4>";
+          } else if (colour_mode == "raw_counts") {
+            div.innerHTML += "<h4>Number of people over 65 years old</h4>";
+          }
           for (var i = 0; i <= MAX_DOMAIN; i += MAX_DOMAIN / 10) {
             div.innerHTML += '<i style="background:' + cmap(i) + '"></i> ' + i + '<br>';
           }
