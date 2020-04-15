@@ -75,7 +75,7 @@
 
       L.control.layers(baseMaps, overlays).addTo(map);
 
-      var cmap = chroma.scale([chroma.hsv(270,1,1), chroma.hsv(180,1,1), chroma.hsv(90,1,1), chroma.hsv(0,1,1)]).mode("hsv").domain([0, 20]);
+      var cmap = chroma.scale("Blues").domain([0, 20]);
 
       function popupHandler(e) {
         console.log(e);
