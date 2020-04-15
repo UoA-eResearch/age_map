@@ -83,22 +83,32 @@
         px.y -= e.target._popup._container.clientHeight * 3;
         map.panTo(map.unproject(px),{animate: true});
         var data = e.popup.options.data;
+        console.log(data);
         var keys = ["0-4 years", "5-9 years", "10-14 years", "15-19 years", "20-24 years", "25-29 years", "30-34 years", "35-39 years", "40-44 years", "45-49 years", "50-54 years", "55-59 years", "60-64 years", "65-69 years", "70-74 years", "75-79 years", "80-84 years", "85 years and over"];
         var values = [];
         for (var i in keys) {
           var k = keys[i]
           values.push(data[k]);
         }
-        var data = [
+        var plotData = [
           {
             x: keys,
             y: values,
             type: 'bar'
           }
         ];
+        var layout = {
+            title: "Age distribution of " + data.name + ". Total people stated: " + data.Total,
+            xaxis: {
+                title: "Age Bracket"
+            },
+            yaxis: {
+                title: "Number of people",
+            },
+        }
 
         var container = $("#graph", e.popup._contentNode);
-        Plotly.newPlot(container[0], data);
+        Plotly.newPlot(container[0], plotData, layout);
       }
       
       $.getJSON("ages.json", function(data) {
@@ -108,7 +118,8 @@
             var id = feature.properties.SA22018_V1_00;
             var saData = data[id][2018];
             var name = feature.properties.SA22018_V1_NAME;
-            var popup = '<h2>' + name + '</h2><div id="graph"></div>';
+            saData.name = name;
+            var popup = '<div id="graph"></div>';
             layer.bindTooltip(name).bindPopup(popup, {data: saData, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
         }
         
