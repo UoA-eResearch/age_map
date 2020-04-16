@@ -222,7 +222,8 @@
           var beds = 0;
           for (var i in hospitals.features) {
             var f = hospitals.features[i].properties;
-            if (f.DHB_Name.replace(" District Health Board", "") == data.name) {
+            if (f.DHB_Name.replace(" District Health Board", "") == data.name && !["Maternity", "Mental health"].includes(f.Service_Types)) {
+              console.log(f)
               beds += f.Total_Beds;
             }
           }
