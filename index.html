@@ -401,6 +401,7 @@
             iconSize: [28, 28]
           });
           var h = feature.properties;
+          if (["Mental health", "Maternity"].includes(h.Service_Types)) continue;
           var desc = "<b>" + h.Premises_Name + "</b><br>" + h.Service_Types + "<br>" + h.Total_Beds + " total beds<br>" + h.DHB_Name;
           var marker = L.marker(latlng, {icon: icon}).bindTooltip(desc).addTo(hospitalLayer);
         }
