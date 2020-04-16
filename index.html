@@ -268,7 +268,7 @@
               var name = feature.properties.SA22018_V1_NAME;
               saData.name = name;
               var popup = '<div id="graph"></div>';
-              layer.bindTooltip(name).bindPopup(popup, {data: saData}).on("popupopen", popupHandler);
+              layer.bindTooltip(name).bindPopup(popup, {data: saData, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
               layer.on("mouseover", function(e) {
                 layer.setStyle({color: "orange"});
                 layer.bringToFront();
