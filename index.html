@@ -179,7 +179,34 @@
         ];
         var title = "Gender and age distribution of " + data.name;
         if (data.type == 'DHB') {
-          title += " DHB"
+          title += " DHB";
+          var keys = ["0 to 9", "10 to 19", "20 to 29", "30 to 39", "40 to 49", "50 to 59", "60 to 69", "70+"];
+          var ageSummaryF = {}
+          var ageSummaryM = {}
+          for (var i in keys) {
+            ageSummaryF[keys[i]] = 0;
+            ageSummaryM[keys[i]] = 0;
+          }
+          for (var i in covidData) {
+            var c = covidData[i];
+            if (c.DHB == data.name) {
+              if (c.Sex == "Female") {
+                ageSummaryF[c["Age group"]]++;
+              } else {
+                ageSummaryM[c["Age group"]]++;
+              }
+            }
+          }
+          plotData.push({
+            x: keys,
+            y: Object.values(ageSummaryM),
+            name: "Male COVID-19 cases"
+          });
+          plotData.push({
+            x: keys,
+            y: Object.values(ageSummaryF),
+            name: "Female COVID-19 cases"
+          });
         }
         title += ". Total people stated: " + data.Total.Total;
         var layout = {
