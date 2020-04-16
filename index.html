@@ -145,7 +145,7 @@
       function popupHandler(e) {
         console.log(e);
         var px = map.project(e.target._popup._latlng);
-        px.y -= e.target._popup._container.clientHeight * 3;
+        px.y -= 200;
         map.panTo(map.unproject(px),{animate: true});
         var data = e.popup.options.data;
         console.log(data);
@@ -178,6 +178,17 @@
           }
         ];
         var title = "Gender and age distribution of " + data.name;
+        var layout = {
+            title: title,
+            height: 300,
+            barmode: 'stack',
+            xaxis: {
+                title: "Age Bracket"
+            },
+            yaxis: {
+                title: "Number of people",
+            },
+        }
         if (data.type == 'DHB') {
           title += " DHB";
           var keys = ["0 to 9", "10 to 19", "20 to 29", "30 to 39", "40 to 49", "50 to 59", "60 to 69", "70+"];
@@ -187,9 +198,11 @@
             ageSummaryF[keys[i]] = 0;
             ageSummaryM[keys[i]] = 0;
           }
+          var totalCases = 0;
           for (var i in covidData) {
             var c = covidData[i];
             if (c.DHB == data.name) {
+              totalCases++;
               if (c.Sex == "Female") {
                 ageSummaryF[c["Age group"]]++;
               } else {
@@ -197,28 +210,26 @@
               }
             }
           }
-          plotData.push({
-            x: keys,
-            y: Object.values(ageSummaryM),
-            name: "Male COVID-19 cases"
-          });
-          plotData.push({
-            x: keys,
-            y: Object.values(ageSummaryF),
-            name: "Female COVID-19 cases"
-          });
+          var covidPlotData = [{
+              x: keys,
+              y: Object.values(ageSummaryM),
+              type: "bar",
+              name: "Male"
+            },
+            {
+              x: keys,
+              y: Object.values(ageSummaryF),
+              type: "bar",
+              name: "Female"
+          }];
+          layout.title = "Gender and age distribution of COVID-19 cases in " + data.name + " DHB. Total cases: " + totalCases;
+          var container = $("<div id='covid_plot'></div>");
+          $(e.popup._contentNode).append(container);
+          console.log(container)
+          Plotly.newPlot(container[0], covidPlotData, layout);
         }
         title += ". Total people stated: " + data.Total.Total;
-        var layout = {
-            title: title,
-            barmode: 'stack',
-            xaxis: {
-                title: "Age Bracket"
-            },
-            yaxis: {
-                title: "Number of people",
-            },
-        }
+        layout.title = title;
 
         var container = $("#graph", e.popup._contentNode);
         Plotly.newPlot(container[0], plotData, layout);
@@ -257,7 +268,7 @@
               var name = feature.properties.SA22018_V1_NAME;
               saData.name = name;
               var popup = '<div id="graph"></div>';
-              layer.bindTooltip(name).bindPopup(popup, {data: saData, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
+              layer.bindTooltip(name).bindPopup(popup, {data: saData}).on("popupopen", popupHandler);
               layer.on("mouseover", function(e) {
                 layer.setStyle({color: "orange"});
                 layer.bringToFront();
