@@ -210,6 +210,22 @@
               }
             }
           }
+          
+          var count = 0;
+          for (var i in covidCasesByDHB) {
+            var c = covidCasesByDHB[i];
+            if (c.DHB == data.name) {
+              count = parseInt(c.Active);
+              console.log(name, count)
+            }
+          }
+          var beds = 0;
+          for (var i in hospitals.features) {
+            var f = hospitals.features[i].properties;
+            if (f.DHB_Name.replace(" District Health Board", "") == data.name) {
+              beds += f.Total_Beds;
+            }
+          }
           var covidPlotData = [{
               x: keys,
               y: Object.values(ageSummaryM),
@@ -222,7 +238,7 @@
               type: "bar",
               name: "Female"
           }];
-          layout.title = "Gender and age distribution of COVID-19 cases in " + data.name + " DHB. Total cases: " + totalCases;
+          layout.title = "Gender and age distribution of COVID-19 cases in " + data.name + " DHB.<br>Active cases: " + count + ". Total cases: " + totalCases + ". Total beds: " + beds;
           var container = $("<div id='covid_plot'></div>");
           $(e.popup._contentNode).append(container);
           console.log(container)
@@ -283,73 +299,78 @@
             Plotly.d3.csv("https://raw.githubusercontent.com/uoa-eresearch/nz-covid19-data-auto/master/data.csv", function(covidData) {
               console.log(covidData);
               window.covidData = covidData;
-              $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
-                console.log(NZ_DHB2012);
-                new L.GeoJSON(NZ_DHB2012, {
-                  onEachFeature: function (feature, layer) {
-                    var popup = '<div id="graph"></div>';
-                    var name = feature.properties.NAME;
-                    if (name == "Hutt") name = "Hutt Valley"
-                    if (name == "Midcentral") name = "MidCentral"
-                    feature.data.name = name;
-                    layer.bindTooltip(name + " DHB").bindPopup(popup, {data: feature.data, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
-                    var count = 0;
-                    for (var i in covidData) {
-                      var c = covidData[i];
-                      if (c.DHB == name) {
-                        count++;
-                      }
-                    }
-                    L.marker(layer.getBounds().getCenter(), {name: name, cases: count}).bindTooltip(count + " COVID-19 cases in " + name).addTo(covidLayer);
-                  },
-                  style: function(feature) {
-                    var name = feature.properties.NAME;
-                    var count = 0;
-                    var total = 0;
-                    var ageSummaryM = {}
-                    var ageSummaryF = {}
-                    for (var i in sa2_centroids_to_DHB.features) {
-                      var f = sa2_centroids_to_DHB.features[i];
-                      if (f.properties["DHB.NAME"] == name) {
-                        var id = f.properties.SA22018_V1;
-                        var sa2data = data[id].Total;
-                        if (sa2data.over65 != undefined) {
-                          count += sa2data.over65;
+              Plotly.d3.csv("https://raw.githubusercontent.com/UoA-eResearch/nz-covid19-data-auto/master/cases_by_DHB.csv", function(covidCasesByDHB) {
+                console.log(covidCasesByDHB);
+                window.covidCasesByDHB = covidCasesByDHB
+                $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
+                  console.log(NZ_DHB2012);
+                  new L.GeoJSON(NZ_DHB2012, {
+                    onEachFeature: function (feature, layer) {
+                      var popup = '<div id="graph"></div>';
+                      var name = feature.properties.NAME;
+                      if (name == "Hutt") name = "Hutt Valley"
+                      if (name == "Midcentral") name = "MidCentral"
+                      feature.data.name = name;
+                      layer.bindTooltip(name + " DHB").bindPopup(popup, {data: feature.data, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
+                      var count = 0;
+                      for (var i in covidCasesByDHB) {
+                        var c = covidCasesByDHB[i];
+                        if (c.DHB == name) {
+                          count = parseInt(c.Active);
+                          console.log(name, count)
                         }
-                        for (var k in data[id].Male) {
-                          if (!ageSummaryM[k]) ageSummaryM[k] = 0;
-                          ageSummaryM[k] += data[id].Male[k];
-                        }
-                        for (var k in data[id].Female) {
-                          if (!ageSummaryF[k]) ageSummaryF[k] = 0;
-                          ageSummaryF[k] += data[id].Female[k];
-                        }
-                        total += sa2data.Total;
                       }
-                    }
-                    feature.data = {
-                      name: name + " DHB",
-                      type: "DHB",
-                      Female: ageSummaryF,
-                      Male: ageSummaryM,
-                      Total: {
-                        Total: total
+                      L.marker(layer.getBounds().getCenter(), {name: name, cases: count}).bindTooltip(count + " active COVID-19 cases in " + name).addTo(covidLayer);
+                    },
+                    style: function(feature) {
+                      var name = feature.properties.NAME;
+                      var count = 0;
+                      var total = 0;
+                      var ageSummaryM = {}
+                      var ageSummaryF = {}
+                      for (var i in sa2_centroids_to_DHB.features) {
+                        var f = sa2_centroids_to_DHB.features[i];
+                        if (f.properties["DHB.NAME"] == name) {
+                          var id = f.properties.SA22018_V1;
+                          var sa2data = data[id].Total;
+                          if (sa2data.over65 != undefined) {
+                            count += sa2data.over65;
+                          }
+                          for (var k in data[id].Male) {
+                            if (!ageSummaryM[k]) ageSummaryM[k] = 0;
+                            ageSummaryM[k] += data[id].Male[k];
+                          }
+                          for (var k in data[id].Female) {
+                            if (!ageSummaryF[k]) ageSummaryF[k] = 0;
+                            ageSummaryF[k] += data[id].Female[k];
+                          }
+                          total += sa2data.Total;
+                        }
                       }
-                    }
-                    console.log(name, count, total);
-                    if (colour_mode == "pct") {
-                      count = count / total * 100;
-                    }
-                    var color = cmap(count);
+                      feature.data = {
+                        name: name + " DHB",
+                        type: "DHB",
+                        Female: ageSummaryF,
+                        Male: ageSummaryM,
+                        Total: {
+                          Total: total
+                        }
+                      }
+                      console.log(name, count, total);
+                      if (colour_mode == "pct") {
+                        count = count / total * 100;
+                      }
+                      var color = cmap(count);
 
-                    return {
-                      color: "purple",
-                      fillColor: color,
-                      fillOpacity: 1,
-                      weight: 1
+                      return {
+                        color: "purple",
+                        fillColor: color,
+                        fillOpacity: 1,
+                        weight: 1
+                      }
                     }
-                  }
-                }).addTo(DHBLayer);
+                  }).addTo(DHBLayer);
+                });
               });
             });
           });
@@ -358,6 +379,7 @@
 
       $.getJSON("https://services.arcgis.com/XTtANUDT8Va4DLwI/arcgis/rest/services/PublicHospitalsNZ/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson", function(geojson) {
         console.log(geojson);
+        window.hospitals = geojson;
         for (var i in geojson.features) {
           var feature = geojson.features[i];
           var latlng;
