@@ -165,7 +165,8 @@ table thead th {
 }
 
 .hospital-icon {
-  background-color: red;
+  background-image: url("https://wiki.openstreetmap.org/w/images/3/33/Hospital-14.svg");
+  
 }
 .hospital-icon div {
   background-color:white;
