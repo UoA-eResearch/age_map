@@ -447,7 +447,9 @@
             div.innerHTML += "<h4>Number of people over 65 years old</h4>";
           }
           for (var i = 0; i <= MAX_DOMAIN; i += MAX_DOMAIN / 10) {
-            div.innerHTML += '<i style="background:' + cmap(i) + '"></i> ' + i + '<br>';
+            var i_text = i;
+            if (i == MAX_DOMAIN) i_text = ">=" + i
+            div.innerHTML += '<i style="background:' + cmap(i) + '"></i> ' + i_text + '<br>';
           }
           div.innerHTML += '<div class="legend-source">Source: <a href="https://www.stats.govt.nz/tools/2018-census-place-summaries/" target="_blank">Statistics NZ</a></div>'
 
