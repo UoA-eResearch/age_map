@@ -122,6 +122,22 @@
         }
       }
 
+      map.on("overlayadd", function(e) {
+        console.log(e);
+        layers.push(e.name);
+        console.log(layers);
+        urlParams.set("layers", layers.join(","));
+        var newRelativePathQuery = window.location.pathname + '?' + urlParams.toString();
+        history.pushState(null, '', newRelativePathQuery);
+      }).on("overlayremove", function(e) {
+        console.log(e);
+        layers.splice(layers.indexOf(e.name), 1);
+        console.log(layers);
+        urlParams.set("layers", layers.join(","));
+        var newRelativePathQuery = window.location.pathname + '?' + urlParams.toString();
+        history.pushState(null, '', newRelativePathQuery);
+      });
+
       L.control.layers(baseMaps, overlays).addTo(map);
 
       var cmap = chroma.scale("Blues").domain([0, MAX_DOMAIN]);
