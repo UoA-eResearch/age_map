@@ -23,6 +23,11 @@
         colour_mode = "raw_counts";
         MAX_DOMAIN = 500;
       }
+      var layers = ["Age data", "Hospitals"];
+      if (urlParams.get("layers")) {
+        layers = urlParams.get("layers").split(",");
+      }
+      console.log(layers)
 
       var map = L.map('map', {
         zoom: 6,
@@ -109,6 +114,14 @@
           "City labels (white)": whitelabels,
       }
 
+      for (var key in overlays) {
+        if (layers.includes(key)) {
+          overlays[key].addTo(map);
+        } else {
+          overlays[key].removeFrom(map);
+        }
+      }
+
       L.control.layers(baseMaps, overlays).addTo(map);
 
       var cmap = chroma.scale("Blues").domain([0, MAX_DOMAIN]);
@@ -148,8 +161,13 @@
             type: "bar"
           }
         ];
+        var title = "Gender and age distribution of " + data.name;
+        if (data.type == 'DHB') {
+          title += " DHB"
+        }
+        title += ". Total people stated: " + data.Total.Total;
         var layout = {
-            title: "Gender and age distribution of " + data.name + ". Total people stated: " + data.Total.Total,
+            title: title,
             barmode: 'stack',
             xaxis: {
                 title: "Age Bracket"
@@ -210,6 +228,7 @@
             
             Plotly.d3.csv("https://raw.githubusercontent.com/uoa-eresearch/nz-covid19-data-auto/master/data.csv", function(covidData) {
               console.log(covidData);
+              window.covidData = covidData;
               $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
                 console.log(NZ_DHB2012);
                 new L.GeoJSON(NZ_DHB2012, {
@@ -218,6 +237,7 @@
                     var name = feature.properties.NAME;
                     if (name == "Hutt") name = "Hutt Valley"
                     if (name == "Midcentral") name = "MidCentral"
+                    feature.data.name = name;
                     layer.bindTooltip(name + " DHB").bindPopup(popup, {data: feature.data, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
                     var count = 0;
                     for (var i in covidData) {
@@ -255,6 +275,7 @@
                     }
                     feature.data = {
                       name: name + " DHB",
+                      type: "DHB",
                       Female: ageSummaryF,
                       Male: ageSummaryM,
                       Total: {
