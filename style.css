@@ -158,3 +158,10 @@ table thead th {
   background-color:white;
   border-radius: 14px;
 }
+
+.hospital-icon {
+  background-color: red;
+}
+.hospital-icon div {
+  background-color:white;
+}

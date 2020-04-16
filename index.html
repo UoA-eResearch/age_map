@@ -54,7 +54,32 @@
       var DHBLayer = L.layerGroup();
       var hospitalLayer = L.markerClusterGroup({
         maxClusterRadius: 40,
+        iconCreateFunction: function(cluster) {
+          return new L.DivIcon({ html: '<div><span>' + cluster.getChildCount() + '</span></div>', className: 'marker-cluster hospital-icon', iconSize: new L.Point(40, 40) });
+        },
       }).addTo(map);
+      var covidLayer = L.markerClusterGroup({
+        singleMarkerMode: true,
+        maxClusterRadius: 40,
+        iconCreateFunction: function (cluster) {
+            var markers = cluster.getAllChildMarkers();
+            var n = 0;
+            for (var i = 0; i < markers.length; i++) {
+                n += markers[i].options.cases;
+            }
+
+            var c = ' marker-cluster-';
+            if (n < 10) {
+                c += 'small';
+            } else if (n < 100) {
+                c += 'medium';
+            } else {
+                c += 'large';
+            }
+
+            return new L.DivIcon({ html: '<div><span>' + n + '</span></div>', className: 'marker-cluster' + c, iconSize: new L.Point(40, 40) });
+        },
+      });
 
       map.createPane('labels');
       map.getPane('labels').style.zIndex = 625;
@@ -79,6 +104,7 @@
           "Age data": ageLayer,
           "Hospitals": hospitalLayer,
           "DHBs": DHBLayer,
+          "COVID-19 cases": covidLayer,
           "City labels": labels,
           "City labels (white)": whitelabels,
       }
@@ -181,60 +207,75 @@
           }).addTo(ageLayer);
           $.getJSON("sa2_centroids_to_DHB.geojson", function(sa2_centroids_to_DHB) {
             console.log(sa2_centroids_to_DHB);
-            $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
-              console.log(NZ_DHB2012);
-              new L.GeoJSON(NZ_DHB2012, {
-                onEachFeature: function (feature, layer) {
-                  var popup = '<div id="graph"></div>';
-                  layer.bindTooltip(feature.properties.NAME + " DHB").bindPopup(popup, {data: feature.data, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
-                },
-                style: function(feature) {
-                  var name = feature.properties.NAME;
-                  var count = 0;
-                  var total = 0;
-                  var ageSummaryM = {}
-                  var ageSummaryF = {}
-                  for (var i in sa2_centroids_to_DHB.features) {
-                    var f = sa2_centroids_to_DHB.features[i];
-                    if (f.properties["DHB.NAME"] == name) {
-                      var id = f.properties.SA22018_V1;
-                      var sa2data = data[id].Total;
-                      if (sa2data.over65 != undefined) {
-                        count += sa2data.over65;
+            
+            Plotly.d3.csv("https://raw.githubusercontent.com/uoa-eresearch/nz-covid19-data-auto/master/data.csv", function(covidData) {
+              console.log(covidData);
+              $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
+                console.log(NZ_DHB2012);
+                new L.GeoJSON(NZ_DHB2012, {
+                  onEachFeature: function (feature, layer) {
+                    var popup = '<div id="graph"></div>';
+                    var name = feature.properties.NAME;
+                    if (name == "Hutt") name = "Hutt Valley"
+                    if (name == "Midcentral") name = "MidCentral"
+                    layer.bindTooltip(name + " DHB").bindPopup(popup, {data: feature.data, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
+                    var count = 0;
+                    for (var i in covidData) {
+                      var c = covidData[i];
+                      if (c.DHB == name) {
+                        count++;
                       }
-                      for (var k in data[id].Male) {
-                        if (!ageSummaryM[k]) ageSummaryM[k] = 0;
-                        ageSummaryM[k] += data[id].Male[k];
-                      }
-                      for (var k in data[id].Female) {
-                        if (!ageSummaryF[k]) ageSummaryF[k] = 0;
-                        ageSummaryF[k] += data[id].Female[k];
-                      }
-                      total += sa2data.Total;
                     }
-                  }
-                  feature.data = {
-                    name: name + " DHB",
-                    Female: ageSummaryF,
-                    Male: ageSummaryM,
-                    Total: {
-                      Total: total
+                    L.marker(layer.getBounds().getCenter(), {name: name, cases: count}).bindTooltip(count + " COVID-19 cases in " + name).addTo(covidLayer);
+                  },
+                  style: function(feature) {
+                    var name = feature.properties.NAME;
+                    var count = 0;
+                    var total = 0;
+                    var ageSummaryM = {}
+                    var ageSummaryF = {}
+                    for (var i in sa2_centroids_to_DHB.features) {
+                      var f = sa2_centroids_to_DHB.features[i];
+                      if (f.properties["DHB.NAME"] == name) {
+                        var id = f.properties.SA22018_V1;
+                        var sa2data = data[id].Total;
+                        if (sa2data.over65 != undefined) {
+                          count += sa2data.over65;
+                        }
+                        for (var k in data[id].Male) {
+                          if (!ageSummaryM[k]) ageSummaryM[k] = 0;
+                          ageSummaryM[k] += data[id].Male[k];
+                        }
+                        for (var k in data[id].Female) {
+                          if (!ageSummaryF[k]) ageSummaryF[k] = 0;
+                          ageSummaryF[k] += data[id].Female[k];
+                        }
+                        total += sa2data.Total;
+                      }
                     }
-                  }
-                  console.log(name, count, total);
-                  if (colour_mode == "pct") {
-                    count = count / total * 100;
-                  }
-                  var color = cmap(count);
+                    feature.data = {
+                      name: name + " DHB",
+                      Female: ageSummaryF,
+                      Male: ageSummaryM,
+                      Total: {
+                        Total: total
+                      }
+                    }
+                    console.log(name, count, total);
+                    if (colour_mode == "pct") {
+                      count = count / total * 100;
+                    }
+                    var color = cmap(count);
 
-                  return {
-                    color: "purple",
-                    fillColor: color,
-                    fillOpacity: 1,
-                    weight: 1
+                    return {
+                      color: "purple",
+                      fillColor: color,
+                      fillOpacity: 1,
+                      weight: 1
+                    }
                   }
-                }
-              }).addTo(DHBLayer);
+                }).addTo(DHBLayer);
+              });
             });
           });
         });
