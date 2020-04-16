@@ -28,6 +28,10 @@
         layers = urlParams.get("layers").split(",");
       }
       console.log(layers)
+      var cmap = "Blues";
+      if (urlParams.get("cmap")) {
+        cmap = urlParams.get("cmap");
+      }
 
       var map = L.map('map', {
         zoom: 6,
@@ -140,7 +144,7 @@
 
       L.control.layers(baseMaps, overlays).addTo(map);
 
-      var cmap = chroma.scale("Blues").domain([0, MAX_DOMAIN]);
+      var cmap = chroma.scale(cmap).domain([0, MAX_DOMAIN]);
 
       function popupHandler(e) {
         console.log(e);
