@@ -72,6 +72,11 @@ table thead th {
   text-align: left;
 }
 
+.leaflet-touch .leaflet-control-layers-toggle {
+  width: 60px;
+  height: 60px;
+}
+
 
 
 #title {
