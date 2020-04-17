@@ -23,12 +23,12 @@
         colour_mode = "raw_counts";
         MAX_DOMAIN = 500;
       }
-      var layers = ["Age data", "Hospitals"];
+      var layers = ["Hospitals", "DHBs", "Active COVID-19 cases"];
       if (urlParams.get("layers")) {
         layers = urlParams.get("layers").split(",");
       }
       console.log(layers)
-      var cmap = "Blues";
+      var cmap = "Spectral";
       if (urlParams.get("cmap")) {
         cmap = urlParams.get("cmap");
         if (cmap.includes(",")) cmap = cmap.split(",");
@@ -116,7 +116,7 @@
           "Hospitals": hospitalLayer,
           "Mental health and maternity hospitals": L.layerGroup(),
           "DHBs": DHBLayer,
-          "COVID-19 cases": covidLayer,
+          "Active COVID-19 cases": covidLayer,
           "City labels": labels,
           "City labels (white)": whitelabels,
       }
