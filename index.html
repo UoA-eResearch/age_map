@@ -121,12 +121,15 @@
           opacity: .8,
       });
 
+      var NZIMD = L.layerGroup();
+
       var overlays = {
           "Age data": ageLayer,
           "Hospitals": hospitalLayer,
           "Mental health and maternity hospitals": L.layerGroup(),
           "DHBs": DHBLayer,
           "Active COVID-19 cases": covidLayer,
+          "NZ Index of Multiple Deprivation": NZIMD,
           "City labels": labels,
           "City labels (white)": whitelabels,
       }
@@ -149,31 +152,39 @@
         }
       }
 
-      map.on("overlayadd", function(e) {
-        console.log(e);
-        layers.push(e.name);
-        console.log(layers);
+      function layerchange() {
         urlParams.set("layers", layers.join(","));
-        var newRelativePathQuery = window.location.pathname + '?' + urlParams.toString();
-        history.pushState(null, '', newRelativePathQuery);
-        if (e.name == "Mental health and maternity hospitals") {
-          otherHospitalLayer.addTo(hospitalLayer);
+        if (layers.includes("NZ Index of Multiple Deprivation")) {
+          $("#imdLegend").show()
+        } else {
+          $("#imdLegend").hide()
         }
-      }).on("overlayremove", function(e) {
-        console.log(e);
-        layers.splice(layers.indexOf(e.name), 1);
-        console.log(layers);
-        urlParams.set("layers", layers.join(","));
+        if (layers.includes("Age data") || layers.includes("DHBs")) {
+          $("#ageLegend").show()
+        } else {
+          $("#ageLegend").hide()
+        }
         var newRelativePathQuery = window.location.pathname + '?' + urlParams.toString();
         history.pushState(null, '', newRelativePathQuery);
-        if (e.name == "Mental health and maternity hospitals") {
+        if (layers.includes("Mental health and maternity hospitals")) {
+          otherHospitalLayer.addTo(hospitalLayer);
+        } else {
           otherHospitalLayer.removeFrom(hospitalLayer);
         }
+      }
+
+      map.on("overlayadd", function(e) {
+        layers.push(e.name);
+        layerchange();
+      }).on("overlayremove", function(e) {
+        layers.splice(layers.indexOf(e.name), 1);
+        layerchange();
       });
 
       L.control.layers(baseMaps, overlays).addTo(map);
 
       var cmap = chroma.scale(cmap).domain([0, MAX_DOMAIN]);
+      var NZIMD_cmap = chroma.scale("Purples").domain([0, 6000])
 
       function popupHandler(e) {
         console.log(e);
@@ -449,26 +460,87 @@
         }
       });
 
+      $.getJSON("NZIMD.geojson", function(geojson) {
+        console.log(geojson)
+        new L.GeoJSON(geojson, {
+          style: function(feature) {
+            return {
+              fillColor: NZIMD_cmap(feature.properties.IMDRank),
+              fillOpacity: .7,
+              color: "gray",
+              dashArray: "2,2",
+              weight: 1
+            }
+          },
+          onEachFeature: function (feature, layer) {
+            var p = feature.properties;
+            layer.bindTooltip("IMDRank: " + p.IMDRank).bindPopup(`2013 usually resident population: ${p["2013URPop"]}<br>
+            District Health Board: ${p.DHB2012Nam}<br>
+            General Electoral District: ${p.GED2014Nam}<br>
+            Territorial Authority: ${p.TA2013Name}<br><div id="plot"></div>`, {data: p, minWidth: 800}).on("popupopen", function(e) {
+              var d = e.popup.options.data;
+              var px = map.project(e.target._popup._latlng);
+              px.y -= 200;
+              map.panTo(map.unproject(px),{animate: true});
+              console.log(d);
+              var keys = ["IMD", "Access", "Crime", "Education", "Employment", "Health", "Housing", "Income"];
+              var data = [d.IMDRank, d.AccRank, d.CriRank, d.EduRank, d.EmpRank, d.HlthRank, d.HouRank, d.IncRank];
+              var data = [{
+                x: keys,
+                y: data,
+                type: 'scatter'
+              }];
+              var layout = {
+                title: "Deprivation in the " + (d.TA2013Name.includes("District") ? d.TA2013Name : d.TA2013Name + " District"),
+                xaxis: {
+                  title: "Domain"
+                },
+                yaxis: {
+                  title: "Rank"
+                }
+              }
+              var container = $("#plot", e.popup._contentNode)[0];
+              Plotly.newPlot(container, data, layout);
+            });
+            layer.on('mouseover', function() {
+              layer.setStyle({dashArray: null, weight: 2});
+            }).on("mouseout", function() {
+              layer.setStyle({dashArray: "2,2", weight: 1});
+            });
+          }
+        }).addTo(NZIMD);
+      })
+
       var legend = L.control({position: 'bottomright'});
 
       legend.onAdd = function (map) {
           var div = L.DomUtil.create('div', 'info legend');
+          var ageLegend = "<div id='ageLegend'>";
           if (colour_mode == "pct") {
-            div.innerHTML += "<h4>Percentage of population over 65 years old</h4>";
+            ageLegend += "<h4>Percentage of population over 65 years old</h4>";
           } else if (colour_mode == "raw_counts") {
-            div.innerHTML += "<h4>Number of people over 65 years old</h4>";
+            ageLegend += "<h4>Number of people over 65 years old</h4>";
           }
           for (var i = 0; i <= MAX_DOMAIN; i += MAX_DOMAIN / 10) {
             var i_text = i;
             if (i == MAX_DOMAIN) i_text = ">=" + i
-            div.innerHTML += '<i style="background:' + cmap(i) + '"></i> ' + i_text + '<br>';
+            ageLegend += '<i style="background:' + cmap(i) + '"></i> ' + i_text + '<br>';
           }
-          div.innerHTML += '<div class="legend-source">Sources: <a href="https://www.stats.govt.nz/tools/2018-census-place-summaries/" target="_blank">Statistics NZ</a> <a href="https://www.health.govt.nz/our-work/diseases-and-conditions/covid-19-novel-coronavirus/covid-19-current-situation/covid-19-current-cases">Ministry of Health</a></div>'
+          div.innerHTML += ageLegend + "</div>";
+
+          var imdLegend = "<div id='imdLegend'><h4>NZIMD Rank</h4>";
+          for (var i = 0; i <= 6000; i += 2000) {
+            imdLegend += `<i style="background: ${NZIMD_cmap(i)}"></i>${i}<br>`;
+          }
+          div.innerHTML += imdLegend + "</div>"
+
+          div.innerHTML += '<div class="legend-source">Sources: <a href="https://www.stats.govt.nz/tools/2018-census-place-summaries/" target="_blank">Statistics NZ</a> <a href="https://www.health.govt.nz/our-work/diseases-and-conditions/covid-19-novel-coronavirus/covid-19-current-situation/covid-19-current-cases">Ministry of Health</a> <a href="https://www.fmhs.auckland.ac.nz/en/soph/about/our-departments/epidemiology-and-biostatistics/research/hgd/research-themes/imd.html">NZIMD</a></div>'
 
           return div;
       };
 
       legend.addTo(map);
+      layerchange();
     </script>
   </body>
 </html>
