@@ -189,7 +189,8 @@
       function popupHandler(e) {
         console.log(e);
         var px = map.project(e.target._popup._latlng);
-        px.y -= 200;
+        console.log(px)
+        px.y -= 400;
         map.panTo(map.unproject(px),{animate: true});
         var data = e.popup.options.data;
         console.log(data);
@@ -283,144 +284,192 @@
               type: "bar",
               name: "Female"
           }];
-          layout.title = "Gender and age distribution of COVID-19 cases in " + data.name + " DHB.<br>Active cases: " + count + ". Total cases: " + totalCases + ". Total hospital beds: " + beds;
+          layout.title = "Gender and age distribution of COVID-19 cases in " + data.name + " DHB.<br>Active cases: " + count.toLocaleString() + ". Total cases: " + totalCases.toLocaleString() + ". Total hospital beds: " + beds.toLocaleString();
           layout.yaxis.title = "Number of cases";
           var container = $("<div id='covid_plot'></div>");
           $(e.popup._contentNode).append(container);
           console.log(container)
           Plotly.newPlot(container[0], covidPlotData, layout);
         }
-        title += ". Total people stated: " + data.Total.Total;
+        title += ". Total people stated: " + data.Total.Total.toLocaleString();
         layout.title = title;
         layout.yaxis.title = "Number of people";
 
         var container = $("#graph", e.popup._contentNode);
         Plotly.newPlot(container[0], plotData, layout);
+
+        var smokerData = data.smokerData;
+        console.log(smokerData);
+        var container = $("<div id='smoker_plot'></div>");
+        $(e.popup._contentNode).append(container);
+        layout.title = "Regular smokers in " + data.name + (data.type == "DHB" ? " DHB" : "") + ". Total people stated: " + smokerData.Total.toLocaleString();
+
+        var ageBracketKeys = ["15-29 years", "30-64 years", "65 years and over"]
+        var smokerPlotData = [
+          {
+            x: ageBracketKeys,
+            y: ageBracketKeys.map(bracket => smokerData.Male["Regular smoker"][bracket]),
+            name: "Male",
+            type: 'bar',
+          },
+          {
+            x: ageBracketKeys,
+            y: ageBracketKeys.map(bracket => smokerData.Female["Regular smoker"][bracket]),
+            name: "Female",
+            type: 'bar',
+          }
+        ];
+        Plotly.newPlot(container[0], smokerPlotData, layout);
       }
       
       $.getJSON("ages.json", function(data) {
         console.log(data);
         window.data = data;
-        
-        $.getJSON("sa2.geojson", function(geojson) {
-          var geojsonLayer = new L.GeoJSON(geojson, {
-            style: function(feature) {
-                var id = feature.properties.SA22018_V1_00;
-                var saData = data[id].Total;
-                var count = saData["65-69 years"] + saData["70-74 years"] + saData["75-79 years"] + saData["80-84 years"] + saData["85 years and over"];
-                saData.over65 = count;
-                if (colour_mode == "pct") {
-                  count = count / saData.Total * 100;
-                }
-                var color = cmap(count)
-                return {
-                  fillColor: color,
-                  fillOpacity: .7,
-                  weight: .5,
-                  color: "black",
-                };
-            },
-            filter: function(feature, layer) {
-              var id = feature.properties.SA22018_V1_00;
-              var saData = data[id].Total;
-              return saData.Total > 40;
-            },
-            onEachFeature: function (feature, layer) {
-              var id = feature.properties.SA22018_V1_00;
-              var saData = data[id];
-              var name = feature.properties.SA22018_V1_NAME;
-              saData.name = name;
-              var popup = '<div id="graph"></div>';
-              layer.bindTooltip(name).bindPopup(popup, {data: saData, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
-              layer.on("mouseover", function(e) {
-                layer.setStyle({color: "orange"});
-                layer.bringToFront();
-              }).on("mouseout", function(e) {
-                layer.setStyle({color: "black"});
-              });
-            }
-          }).addTo(ageLayer);
-          $.getJSON("sa2_centroids_to_DHB.geojson", function(sa2_centroids_to_DHB) {
-            console.log(sa2_centroids_to_DHB);
-            
-            Plotly.d3.csv("https://raw.githubusercontent.com/uoa-eresearch/nz-covid19-data-auto/master/data.csv", function(covidData) {
-              console.log(covidData);
-              window.covidData = covidData;
-              Plotly.d3.csv("https://raw.githubusercontent.com/UoA-eResearch/nz-covid19-data-auto/master/cases_by_DHB.csv", function(covidCasesByDHB) {
-                console.log(covidCasesByDHB);
-                window.covidCasesByDHB = covidCasesByDHB
-                $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
-                  console.log(NZ_DHB2012);
-                  new L.GeoJSON(NZ_DHB2012, {
-                    onEachFeature: function (feature, layer) {
-                      var popup = '<div id="graph"></div>';
-                      var name = feature.properties.NAME;
-                      if (name == "Hutt") name = "Hutt Valley"
-                      if (name == "Midcentral") name = "MidCentral"
-                      feature.data.name = name;
-                      layer.bindTooltip(name + " DHB").bindPopup(popup, {data: feature.data, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
-                      var count = 0;
-                      for (var i in covidCasesByDHB) {
-                        var c = covidCasesByDHB[i];
-                        if (c.DHB == name) {
-                          count = parseInt(c.Active);
-                          console.log(name, count)
-                        }
-                      }
-                      L.marker(layer.getBounds().getCenter(), {name: name, cases: count}).bindTooltip(count + " active COVID-19 cases in " + name).addTo(covidLayer);
-                    },
-                    style: function(feature) {
-                      var name = feature.properties.NAME;
-                      var count = 0;
-                      var total = 0;
-                      var ageSummaryM = {}
-                      var ageSummaryF = {}
-                      for (var i in sa2_centroids_to_DHB.features) {
-                        var f = sa2_centroids_to_DHB.features[i];
-                        if (f.properties["DHB.NAME"] == name) {
-                          var id = f.properties.SA22018_V1;
-                          var sa2data = data[id].Total;
-                          if (sa2data.over65 != undefined) {
-                            count += sa2data.over65;
-                          }
-                          for (var k in data[id].Male) {
-                            if (!ageSummaryM[k]) ageSummaryM[k] = 0;
-                            ageSummaryM[k] += data[id].Male[k];
-                          }
-                          for (var k in data[id].Female) {
-                            if (!ageSummaryF[k]) ageSummaryF[k] = 0;
-                            ageSummaryF[k] += data[id].Female[k];
-                          }
-                          total += sa2data.Total;
-                        }
-                      }
-                      feature.data = {
-                        name: name + " DHB",
-                        type: "DHB",
-                        Female: ageSummaryF,
-                        Male: ageSummaryM,
-                        Total: {
-                          Total: total
-                        }
-                      }
-                      console.log(name, count, total);
-                      if (colour_mode == "pct") {
-                        count = count / total * 100;
-                      }
-                      var color = cmap(count);
-
-                      return {
-                        color: "black",
-                        fillColor: color,
-                        fillOpacity: 1,
-                        weight: 1
-                      }
+        $.getJSON("smokers.json", function(smokers) {
+          console.log(smokers);
+          window.smokers = smokers;
+            $.getJSON("sa2.geojson", function(geojson) {
+              var geojsonLayer = new L.GeoJSON(geojson, {
+                style: function(feature) {
+                    var id = feature.properties.SA22018_V1_00;
+                    var saData = data[id].Total;
+                    var count = saData["65-69 years"] + saData["70-74 years"] + saData["75-79 years"] + saData["80-84 years"] + saData["85 years and over"];
+                    saData.over65 = count;
+                    if (colour_mode == "pct") {
+                      count = count / saData.Total * 100;
                     }
-                  }).addTo(DHBLayer);
+                    var color = cmap(count)
+                    return {
+                      fillColor: color,
+                      fillOpacity: .7,
+                      weight: .5,
+                      color: "black",
+                    };
+                },
+                filter: function(feature, layer) {
+                  var id = feature.properties.SA22018_V1_00;
+                  var saData = data[id].Total;
+                  return saData.Total > 40;
+                },
+                onEachFeature: function (feature, layer) {
+                  var id = feature.properties.SA22018_V1_00;
+                  var saData = data[id];
+                  var name = feature.properties.SA22018_V1_NAME;
+                  saData.name = name;
+                  saData.smokerData = smokers[id];
+                  var popup = '<div id="graph"></div>';
+                  layer.bindTooltip(name).bindPopup(popup, {data: saData, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
+                  layer.on("mouseover", function(e) {
+                    layer.setStyle({color: "orange"});
+                    layer.bringToFront();
+                  }).on("mouseout", function(e) {
+                    layer.setStyle({color: "black"});
+                  });
+                }
+              }).addTo(ageLayer);
+              $.getJSON("sa2_centroids_to_DHB.geojson", function(sa2_centroids_to_DHB) {
+                console.log(sa2_centroids_to_DHB);
+                
+                Plotly.d3.csv("https://raw.githubusercontent.com/uoa-eresearch/nz-covid19-data-auto/master/data.csv", function(covidData) {
+                  console.log(covidData);
+                  window.covidData = covidData;
+                  Plotly.d3.csv("https://raw.githubusercontent.com/UoA-eResearch/nz-covid19-data-auto/master/cases_by_DHB.csv", function(covidCasesByDHB) {
+                    console.log(covidCasesByDHB);
+                    window.covidCasesByDHB = covidCasesByDHB
+                    $.getJSON("NZ_DHB2012.geojson", function(NZ_DHB2012) {
+                      console.log(NZ_DHB2012);
+                      new L.GeoJSON(NZ_DHB2012, {
+                        onEachFeature: function (feature, layer) {
+                          var popup = '<div id="graph"></div>';
+                          var name = feature.properties.NAME;
+                          if (name == "Hutt") name = "Hutt Valley"
+                          if (name == "Midcentral") name = "MidCentral"
+                          feature.data.name = name;
+                          layer.bindTooltip(name + " DHB").bindPopup(popup, {data: feature.data, minWidth: 800, autoPanPadding: [400, 400]}).on("popupopen", popupHandler);
+                          var count = 0;
+                          for (var i in covidCasesByDHB) {
+                            var c = covidCasesByDHB[i];
+                            if (c.DHB == name) {
+                              count = parseInt(c.Active);
+                              console.log(name, count)
+                            }
+                          }
+                          L.marker(layer.getBounds().getCenter(), {name: name, cases: count}).bindTooltip(count + " active COVID-19 cases in " + name).addTo(covidLayer);
+                        },
+                        style: function(feature) {
+                          var name = feature.properties.NAME;
+                          var count = 0;
+                          var total = 0;
+                          var ageSummaryM = {}
+                          var ageSummaryF = {}
+                          var smokerAgeSummaryM = {}
+                          var smokerAgeSummaryF = {}
+                          var smokerTotal = 0;
+                          for (var i in sa2_centroids_to_DHB.features) {
+                            var f = sa2_centroids_to_DHB.features[i];
+                            if (f.properties["DHB.NAME"] == name) {
+                              var id = f.properties.SA22018_V1;
+                              var sa2data = data[id].Total;
+                              if (sa2data.over65 != undefined) {
+                                count += sa2data.over65;
+                              }
+                              for (var k in data[id].Male) {
+                                if (!ageSummaryM[k]) ageSummaryM[k] = 0;
+                                ageSummaryM[k] += data[id].Male[k];
+                              }
+                              for (var k in data[id].Female) {
+                                if (!ageSummaryF[k]) ageSummaryF[k] = 0;
+                                ageSummaryF[k] += data[id].Female[k];
+                              }
+                              total += sa2data.Total;
+                              for (var k in smokers[id].Male["Regular smoker"]) {
+                                if (!smokerAgeSummaryM[k]) smokerAgeSummaryM[k] = 0;
+                                smokerAgeSummaryM[k] += smokers[id].Male["Regular smoker"][k]
+                              }
+                              for (var k in smokers[id].Female["Regular smoker"]) {
+                                if (!smokerAgeSummaryF[k]) smokerAgeSummaryF[k] = 0;
+                                smokerAgeSummaryF[k] += smokers[id].Female["Regular smoker"][k]
+                              }
+                              smokerTotal += smokers[id].Total;
+                            }
+                          }
+                          feature.data = {
+                            name: name + " DHB",
+                            type: "DHB",
+                            Female: ageSummaryF,
+                            Male: ageSummaryM,
+                            smokerData: {
+                              Female: {
+                                "Regular smoker": smokerAgeSummaryF
+                              },
+                              Male: {
+                                "Regular smoker": smokerAgeSummaryM
+                              },
+                              Total: smokerTotal
+                            },
+                            Total: {
+                              Total: total
+                            }
+                          }
+                          console.log(name, count, total);
+                          if (colour_mode == "pct") {
+                            count = count / total * 100;
+                          }
+                          var color = cmap(count);
+
+                          return {
+                            color: "black",
+                            fillColor: color,
+                            fillOpacity: 1,
+                            weight: 1
+                          }
+                        }
+                      }).addTo(DHBLayer);
+                    });
+                  });
                 });
               });
             });
-          });
         });
       });
 
