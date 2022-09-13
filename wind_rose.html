@@ -92,7 +92,7 @@
               var name = feature.properties.NAME;
               if (name == "Hutt") name = "Hutt Valley"
               if (name == "Midcentral") name = "MidCentral"
-              layer.bindTooltip(name + " DHB")
+              layer.bindTooltip(name + " DHB", {sticky: true})
 
               age_data_lookup = {}
               for (var d of age_data.data) {
@@ -106,7 +106,7 @@
               var keysDisplay = keys.map(k => k.replace(" Years", "").trim())
               console.log()
 
-              var marker = L.marker(layer.getBounds().getCenter()).bindTooltip(`${name} DHB center`).addTo(map);
+              var marker = L.marker(layer.getBounds().getCenter()).addTo(map);
               const icon = L.divIcon({
                 html: `<div id="${name}"></div>`,
                 className: 'icon',
