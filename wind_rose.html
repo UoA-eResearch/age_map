@@ -1,0 +1,164 @@
+<html>
+
+<head>
+  <title>2021 age distribution estimate by DHB</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.css"
+    integrity="sha256-iYUgmrapfDGvBrePJPrMWQZDcObdAcStKBpjP3Az+3s=" crossorigin="anonymous" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.js"
+    integrity="sha256-CNm+7c26DTTCGRQkM9vp7aP85kHFMqs9MhPEuytF+fQ=" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/leaflet-providers@1.3.0/leaflet-providers.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"
+    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"
+    integrity="sha512-SGWgwwRA8xZgEoKiex3UubkSkV1zSE1BS6O4pXcaxcNtUlQsOmOmhVnDwIvqGRfEmuz83tIGL13cXMZn6upPyg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .leaflet-marker-icon {
+      background-color: transparent;
+      border-radius: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 id="title">2021 age distribution estimate by DHB</h1>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map', {
+      zoom: 6,
+      minZoom: 6,
+      maxZoom: 14,
+      center: [-41.235726, 172.5118422]
+    });
+    var bounds = map.getBounds();
+    bounds._northEast.lat += 10;
+    bounds._northEast.lng += 10;
+    bounds._southWest.lat -= 10;
+    bounds._southWest.lng -= 10;
+    map.setMaxBounds(bounds);
+
+    var baseMaps = {
+      "OSM": L.tileLayer.provider("OpenStreetMap.Mapnik"),
+      "OSM Grayscale": L.tileLayer.provider("OpenStreetMap.BlackAndWhite"),
+      "CartoDB Positron": L.tileLayer.provider('CartoDB.PositronNoLabels').addTo(map),
+      "CartoDB Dark Matter": L.tileLayer.provider("CartoDB.DarkMatter"),
+      "ESRI WorldImagery": L.tileLayer.provider("Esri.WorldImagery"),
+      "Google Hybrid": L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      }),
+      "Wikimedia": L.tileLayer.provider("Wikimedia")
+    }
+
+    map.createPane('labels');
+    map.getPane('labels').style.zIndex = 625;
+    map.getPane('labels').style.pointerEvents = 'none';
+    var labels = L.tileLayer.provider("Stamen.TonerLabels", {
+      pane: "labels",
+      interactive: false,
+      opacity: .8,
+    });
+
+    map.createPane('whitelabels');
+    map.getPane('whitelabels').style.zIndex = 625;
+    map.getPane('whitelabels').style.pointerEvents = 'none';
+    map.getPane('whitelabels').style.filter = 'invert(100%)';
+    var whitelabels = L.tileLayer.provider("Stamen.TonerLabels", {
+      pane: "whitelabels",
+      interactive: false,
+      opacity: .8,
+    });
+
+    var overlays = {
+      "City labels": labels,
+      "City labels (white)": whitelabels,
+    }
+
+    L.control.layers(baseMaps, overlays).addTo(map);
+
+    $.getJSON("NZ_DHB2012.geojson", function (NZ_DHB2012) {
+      Papa.parse("DHB age distribution 2021.csv", {
+        download: true,
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: function (age_data) {
+          console.log(NZ_DHB2012);
+          console.log(age_data)
+          new L.GeoJSON(NZ_DHB2012, {
+            onEachFeature: function (feature, layer) {
+              var name = feature.properties.NAME;
+              if (name == "Hutt") name = "Hutt Valley"
+              if (name == "Midcentral") name = "MidCentral"
+              layer.bindTooltip(name + " DHB")
+
+              age_data_lookup = {}
+              for (var d of age_data.data) {
+                age_data_lookup[d.DHB.trim()] = d
+              }
+              var age_data_for_DHB = age_data_lookup[name]
+              if (!age_data_for_DHB) {
+                console.warn(`No population data for ${name} DHB`)
+              }
+              var keys = Object.keys(age_data_for_DHB).filter(k => k.includes("Years"))
+              var keysDisplay = keys.map(k => k.replace(" Years", "").trim())
+              console.log()
+
+              var marker = L.marker(layer.getBounds().getCenter()).bindTooltip(`${name} DHB center`).addTo(map);
+              const icon = L.divIcon({
+                html: `<div id="${name}"></div>`,
+                className: 'icon',
+                iconSize: [200, 200],
+                iconAnchor: [100, 100],
+              });
+              marker.setIcon(icon);
+              var data = [{
+                r: keys.map(k => age_data_for_DHB[k]),
+                theta: keysDisplay,
+                name: "Age distribution",
+                marker: {
+                  color: Object.keys(keys),
+                  colorscale: 'Jet',
+                  //reversescale: true
+                },
+                type: "barpolar"
+              }]
+              var layout = {
+                //title: `Population distribution in ${name} DHB`,
+                width: 300,
+                height: 200,
+                margin: {
+                  l: 30,
+                  r: 30,
+                  b: 30,
+                  t: 30,
+                },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { size: 10 },
+                polar: {
+                  barmode: "overlay",
+                  //bargap: 0,
+                  //radialaxis: { ticksuffix: "%", angle: 45, dtick: 20 },
+                  angularaxis: { direction: "clockwise" }
+                }
+              }
+
+              Plotly.newPlot(name, data, layout)
+            },
+            style: function (feature) {
+              return {
+                color: "black",
+                weight: 1
+              }
+            }
+          }).addTo(map);
+        }
+      })
+    });
+  </script>
+</body>
+
+</html>
