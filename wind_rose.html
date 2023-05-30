@@ -14,7 +14,7 @@
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js" integrity="sha512-zInFF17qBFVvvvFpIfeBzo7Tj7+rQxLeTJDmbxjBz5/zIr89YVbTNelNhdTT+/DCrxoVzBeUPVFJsczKbB7sew==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <link rel="stylesheet" href="style.css" />
   <style>
@@ -95,6 +95,10 @@
       })
     })
 
+    // Set min and max values for the color scale to 0 and 50000
+    var scale = chroma.scale("BuPu").domain([0, 50000])
+    console.log(scale)
+
     $.getJSON("NZ_DHB2012.geojson", function (NZ_DHB2012) {
       Papa.parse("DHB age distribution 2021.csv", {
         download: true,
@@ -137,8 +141,8 @@
                 theta: keysDisplay,
                 name: "Age distribution",
                 marker: {
-                  color: Object.keys(keys),
-                  colorscale: 'Jet',
+                  color: keys.map(k => scale(age_data_for_DHB[k]).css()),
+                  //colorscale: colorscale,
                   //reversescale: true
                 },
                 type: "barpolar",
