@@ -12,6 +12,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"
     integrity="sha512-SGWgwwRA8xZgEoKiex3UubkSkV1zSE1BS6O4pXcaxcNtUlQsOmOmhVnDwIvqGRfEmuz83tIGL13cXMZn6upPyg=="
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <link rel="stylesheet" href="style.css" />
   <style>
@@ -20,6 +23,8 @@
       border-radius: 14px;
     }
   </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 </head>
 
 <body>
@@ -77,6 +82,18 @@
     }
 
     L.control.layers(baseMaps, overlays).addTo(map);
+    var clusterLayer = L.markerClusterGroup().addTo(map);
+
+    // On zoom in or out, when the markers cluster or uncluster, update the plots
+    clusterLayer.on("animationend", function () {
+      console.log("animationend")
+      clusterLayer.eachLayer(function (layer) {
+        // Only add the plot if the div exists
+        if ($("#" + layer.plot_data.plot_div_id).length) {
+          Plotly.newPlot(layer.plot_data.plot_div_id, layer.plot_data.data, layer.plot_data.layout)
+        }
+      })
+    })
 
     $.getJSON("NZ_DHB2012.geojson", function (NZ_DHB2012) {
       Papa.parse("DHB age distribution 2021.csv", {
@@ -90,6 +107,7 @@
           new L.GeoJSON(NZ_DHB2012, {
             onEachFeature: function (feature, layer) {
               var name = feature.properties.NAME;
+              var plot_div_id = "DHB_plot_" + feature.properties.DHB12;
               if (name == "Hutt") name = "Hutt Valley"
               if (name == "Midcentral") name = "MidCentral"
               layer.bindTooltip(name + " DHB", {sticky: true})
@@ -106,9 +124,9 @@
               var keysDisplay = keys.map(k => k.replace(" Years", "").trim())
               console.log()
 
-              var marker = L.marker(layer.getBounds().getCenter()).addTo(map);
+              var marker = L.marker(layer.getBounds().getCenter()).addTo(clusterLayer);
               const icon = L.divIcon({
-                html: `<div id="${name}"></div>`,
+                html: `<div id="${plot_div_id}"></div>`,
                 className: 'icon',
                 iconSize: [200, 200],
                 iconAnchor: [100, 100],
@@ -146,8 +164,17 @@
                   angularaxis: { direction: "clockwise" }
                 }
               }
+              // Store all of the information required to make the plot in the marker itself, for later use
+              marker.plot_data = {
+                plot_div_id: plot_div_id,
+                data: data,
+                layout: layout
+              }
 
-              Plotly.newPlot(name, data, layout)
+              // Only add the plot if the div exists
+              if ($("#" + plot_div_id).length) {
+                Plotly.newPlot(plot_div_id, data, layout)
+              }
             },
             style: function (feature) {
               return {
